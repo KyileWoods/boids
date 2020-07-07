@@ -18,11 +18,6 @@ int initialise() {
 		SDL_Quit();
 		return 1;
 	}
-}
-
-int main(int argc, char* argv[]){
-	
-	if (initialise == 1) { return 1; }
 
 	//Initialize SDL_image. Throw error and quit if there is a problem
 	if (IMG_Init(IMG_INIT_JPG) == 0) {
@@ -31,14 +26,25 @@ int main(int argc, char* argv[]){
 		SDL_Quit();
 		return 1;
 	}
+}
 
-
-	//Define a window
-	SDL_Window* win = SDL_CreateWindow(
+int CreateWindow(SDL_Window** WhereWindow){
+	SDL_Window* PointerToWindow = SDL_CreateWindow(
 		"CUSTOM WINDOW TITLE", // window's title
 		10, 25, // coordinates on the screen, in pixels, of the window's upper left corner
 		640, 480, // window's length and height in pixels  
 		SDL_WINDOW_OPENGL);
+	*WhereWindow = PointerToWindow;
+}
+
+int main(int argc, char* argv[]){
+	
+	if (initialise == 1) { return 1; }
+
+
+	//Define a window
+	SDL_Window* win;
+	CreateWindow(&win);
 	if (!win) { //Test if a window was defined. Throw error and quit if there is a problem
 		printf("Error creating the window: %s\n", SDL_GetError());
 		IMG_Quit();
