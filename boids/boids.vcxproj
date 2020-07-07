@@ -129,7 +129,8 @@
     <ClCompile Include="boids.c" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="disney.jpg" />
+    <Image Include="Resources\disney.jpg" />
+    <Image Include="Resources\redcircle.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

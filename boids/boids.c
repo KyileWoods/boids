@@ -11,14 +11,18 @@
 #define SPEED (300)
 #define SCROLL_SPEED (300)
 
-int main(int argc, char* argv[])
-{
+int initialise() {
 	//Initialize SDL. Throw error and quit if there is a problem
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
 		printf("Error initializing SDL: %s\n", SDL_GetError());
 		SDL_Quit();
 		return 1;
 	}
+}
+
+int main(int argc, char* argv[]){
+	
+	if (initialise == 1) { return 1; }
 
 	//Initialize SDL_image. Throw error and quit if there is a problem
 	if (IMG_Init(IMG_INIT_JPG) == 0) {
@@ -52,7 +56,7 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 	//Load the image into memory
-	SDL_Surface* surface = IMG_Load("disney.JPG");
+	SDL_Surface* surface = IMG_Load("Resources/redcircle.png");
 	if (!surface) {
 		printf("Error creating the surface: %s\n", SDL_GetError());
 		IMG_Quit();
@@ -73,8 +77,8 @@ int main(int argc, char* argv[])
 	//Get, and then SCALE, the dimensions of the texture
 	SDL_Rect dest;
 	SDL_QueryTexture(tex, NULL, NULL, &dest.w, &dest.h);
-	dest.w /= 5;
-	dest.h /= 5;
+	dest.w = 5;
+	dest.h = 5;
 
 	//Start the sprite in the center of the screen
 	float x_pos = (WINDOW_WIDTH - dest.w) / 2;
@@ -90,7 +94,7 @@ int main(int argc, char* argv[])
 	int right = 0;
 
 	int close_requested = 0;
-
+	
 
 
 	//animation loop
