@@ -304,7 +304,12 @@ int main(int argc, char* argv[]) {
 
 			// Normalize the velocity,
 			float veloc = sqrt((flock[i].y_vel*flock[i].y_vel) + (flock[i].x_vel*flock[i].x_vel));
-			if(veloc > SPEED){}
+			if(veloc > SPEED){
+				float rel_surplus = ((veloc - SPEED) / SPEED)-1;
+				flock[i].y_vel = (1 - rel_surplus)*flock[i].y_vel;
+				flock[i].x_vel = (1 - rel_surplus)*flock[i].x_vel;
+
+			}
 
 			//Update the sprite position
 			flock[i].y_pos += flock[i].y_vel / 60; //Speed-per-second, divided by frame-time
