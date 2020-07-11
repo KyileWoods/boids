@@ -11,6 +11,7 @@
 //pixels per second:
 #define SPEED (300)
 #define SCROLL_SPEED (300)
+#define DEBUG (0)
 
 int initialise() {
 	printf("INITIALIZATION ENTERED\n");
@@ -54,7 +55,7 @@ int InitialiseRenderer(SDL_Renderer** WhereRend, SDL_Window* win) { // Initiates
 	Uint32 render_flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
 	SDL_Window* PointerToRenderer = SDL_CreateRenderer(win, -1, render_flags);
 	*WhereRend = PointerToRenderer;
-	if (!PointerToRenderer) { //Test if a texture was defined. Throw error and quit if there is a problem
+	if (!PointerToRenderer) { //Test if a renderer was defined. Throw error and quit if there is a problem
 		printf("Error creating the renderer: %s\n", SDL_GetError());
 		IMG_Quit();
 		SDL_Quit();
@@ -89,6 +90,7 @@ int main(int argc, char* argv[]) {
 
 	//Load the image data into the graphics hardware memory
 	SDL_Texture* tex = SDL_CreateTextureFromSurface(rend, surface);
+	SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
 	SDL_FreeSurface(surface);
 	if (!tex) {
 		printf("Error creating the surface: %s\n", SDL_GetError());
@@ -98,23 +100,22 @@ int main(int argc, char* argv[]) {
 	}
 
 	int boids_count = 5 ;
-	//Get, and then SCALE, the dimensions of the texture
-	//SDL_Rect dest[boids_count];
+	//Create an array of textures representing each boid
 	SDL_Rect* pdest = (SDL_Rect*)malloc(boids_count * sizeof(SDL_Rect));
-	//ptr = (int*)malloc(100 * sizeof(int)); //Prototype
+	//ptr = (int*)malloc(100 * sizeof(int)); //Prototype of the malloc function
 	float* x_pos = (float*)malloc(boids_count * sizeof(float));
 	float* y_pos = (float*)malloc(boids_count * sizeof(float));
 	float* x_vel = (float*)malloc(boids_count * sizeof(float));
 	float* y_vel = (float*)malloc(boids_count * sizeof(float));
-	printf("position and velocity established!\n");
+	printf("position and velocity structs established!\n");
 
-	for (int i = 0; i <= boids_count; i++) {
-		printf("%d Established: ... ", i); // Debug line
-		printf("%d", pdest[i].w); // Debug line
+	for (int i = 0; i < boids_count; i++) {
+		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
+					 printf("at %d |", pdest[i].w); } // Debug line
 		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
-		pdest[i].w = 5;
-		pdest[i].h = 5; //Absolute scale, in pixels
-		printf("texture..."); // Debug line
+		pdest[i].w = 10;
+		pdest[i].h = 10; //Absolute scale, in pixels
+		if (DEBUG) { printf("texture..."); } // Debug line
 
 
 
@@ -124,15 +125,16 @@ int main(int argc, char* argv[]) {
 		dest2.w = 5;
 		dest2.h = 5; //Absolute scale, in pixels
 	*/
-		//Start the sprite in the center of the screen
-		x_pos[i] = (WINDOW_WIDTH - pdest[i].w) / (rand()%10);
-		y_pos[i] = (WINDOW_HEIGHT - pdest[i].h) / (rand()%10);
+		//Sprite position on the screen
+		x_pos[i] = (WINDOW_WIDTH - pdest[i].w) / (rand() % 10);
+		y_pos[i] = (WINDOW_HEIGHT - pdest[i].h) / (rand() % 10); //(rand()%10)
 		//Give sprite some initial velocity
-		x_vel[i] = 0.1*SPEED*(rand()%10);
-		y_vel[i] = 0.1*SPEED * (rand() % 10);
-		printf("Position and velocity\n"); // Debug line
+		x_vel[i] = 0.1*SPEED*(rand() % 10);
+		y_vel[i] = 0.1*SPEED*(rand() % 10);
+		if (DEBUG) { printf("Position and velocity: "); }// Debug line
+		if (DEBUG) { printf("%f %f\n", x_pos[i], x_vel[i]); }// Debug line
 	}
-	printf("Boids created successfully!"); // Debug line
+	if (DEBUG) { printf("Boids created successfully!"); }// Debug line
 	//Keep track of the inputs that are given
 	int up = 0;
 	int down = 0;
@@ -145,7 +147,11 @@ int main(int argc, char* argv[]) {
 
 	//animation loop
 	while (!close_requested) {
-		printf("Loop Entere!\n");
+		if (DEBUG) { printf("\nMain loop:   "); }
+
+		//Clear the window in the buffer
+		SDL_RenderClear(rend);
+
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) //Keyboard input capturing
 		{
@@ -223,7 +229,8 @@ int main(int argc, char* argv[]) {
 		if (!up && down) { y_vel = SPEED; }
 		if (left && !right) { x_vel = -SPEED; }
 		if (!left && right) { x_vel = SPEED; }*/
-		for (int i = 0; i <= boids_count; i++) {
+		for (int i = 0; i < boids_count; i++) {
+			if(DEBUG){printf("\nBoid #%d ", i); }
 			//Bounds-collision detection and reflection
 			if (x_pos[i] <= 0) {
 				x_pos[i] = 0;
@@ -241,6 +248,7 @@ int main(int argc, char* argv[]) {
 				y_pos[i] = WINDOW_HEIGHT - pdest[i].h;
 				y_vel[i] = -SPEED;
 			}
+			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
 
 			//Update the sprite position
 			y_pos[i] += y_vel[i] / 60; //Speed-per-second, divided by frame-time
@@ -248,16 +256,19 @@ int main(int argc, char* argv[]) {
 			//set the positions in the struct
 			pdest[i].y = (int)y_pos[i]; //Take note of the cast from float to int, here
 			pdest[i].x = (int)x_pos[i];
+			if (DEBUG) { printf("Sprite positions updated ..."); } //Debug line
 
-
-			//Clear the window
-			SDL_RenderClear(rend);
 			//draw the image to the window
 			SDL_RenderCopy(rend, tex, NULL, &pdest[i]);
-			SDL_RenderPresent(rend);
+			if (DEBUG) { printf("RenderCopy succeeded"); } //Debug line
 		}
+
+		if (DEBUG) { ("Attempting RenderPresent..."); }
+		SDL_RenderPresent(rend);
+		if (DEBUG) { printf("\n-----------------RenderPresent succeeded------------------------"); } //Debug line
+		
 		//Delay the renderer. This does not take into account the time through the animation loop.
-		SDL_Delay(1000 / 60);
+		SDL_Delay(100/60);
 	}
 
 
