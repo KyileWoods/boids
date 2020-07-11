@@ -6,12 +6,14 @@
 #include<stdint.h>
 #include<math.h>
 
-#define WINDOW_WIDTH (640)
-#define WINDOW_HEIGHT (480)
+#define WINDOW_WIDTH (1200)
+#define WINDOW_HEIGHT (600)
 //pixels per second:
 #define SPEED (300)
 #define SCROLL_SPEED (300)
 #define DEBUG (0)
+#define FORCE_CONSTANT (300)
+#define BOIDS_COUNT (15)
 
 int initialise() {
 	printf("INITIALIZATION ENTERED\n");
@@ -35,9 +37,9 @@ int initialise() {
 int CreateWindow(SDL_Window** WhereWindow){ // Initiates the main game screen. Returns a 1 on failure
 	printf("Entered window creation\n");
 	SDL_Window* PointerToWindow = SDL_CreateWindow(
-		"CUSTOM WINDOW TITLE", // window's title
+		"BOIDS", // window's title
 		10, 25, // coordinates on the screen, in pixels, of the window's upper left corner
-		640, 480, // window's length and height in pixels  
+		WINDOW_WIDTH, WINDOW_HEIGHT, // window's length and height in pixels  
 		SDL_WINDOW_OPENGL);
 	*WhereWindow = PointerToWindow;
 
@@ -69,7 +71,6 @@ struct Boid { int ID; float x_pos; float y_pos; float x_vel; float y_vel; };
 int main(int argc, char* argv[]) {
 
 	if (initialise() == 1) { return 1; }
-
 
 	//Define a window
 	SDL_Window* win;
@@ -103,18 +104,18 @@ int main(int argc, char* argv[]) {
 
 	
 
-	int boids_count = 15 ;
+	
 	//Create an array of textures representing each boid
-	SDL_Rect* pdest = (SDL_Rect*)malloc(boids_count * sizeof(SDL_Rect));
-	struct Boid* flock = (struct Boid*)malloc(boids_count * sizeof(struct Boid)); //Creating space for a flock of boids
+	SDL_Rect* pdest = (SDL_Rect*)malloc(BOIDS_COUNT * sizeof(SDL_Rect));
+	struct Boid* flock = (struct Boid*)malloc(BOIDS_COUNT * sizeof(struct Boid)); //Creating space for a flock of boids
 	//ptr = (int*)malloc(100 * sizeof(int)); //Prototype of the malloc function
-	float* x_pos = (float*)malloc(boids_count * sizeof(float));
-	float* y_pos = (float*)malloc(boids_count * sizeof(float));
-	float* x_vel = (float*)malloc(boids_count * sizeof(float));
-	float* y_vel = (float*)malloc(boids_count * sizeof(float));
+	float* x_pos = (float*)malloc(BOIDS_COUNT * sizeof(float));
+	float* y_pos = (float*)malloc(BOIDS_COUNT * sizeof(float));
+	float* x_vel = (float*)malloc(BOIDS_COUNT * sizeof(float));
+	float* y_vel = (float*)malloc(BOIDS_COUNT * sizeof(float));
 	printf("position and velocity structs established!\n");
 
-	for (int i = 0; i < boids_count; i++) {
+	for (int i = 0; i < BOIDS_COUNT; i++) {
 		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
 					 printf("at %d |", pdest[i].w); } // Debug line
 		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
@@ -234,7 +235,7 @@ int main(int argc, char* argv[]) {
 		if (!up && down) { y_vel = SPEED; }
 		if (left && !right) { x_vel = -SPEED; }
 		if (!left && right) { x_vel = SPEED; }*/
-		for (int i = 0; i < boids_count; i++) {
+		for (int i = 0; i < BOIDS_COUNT; i++) {
 			if(DEBUG){printf("\nBoid #%d ", i); }
 
 			//Bounds-collision detection and reflection
@@ -256,10 +257,50 @@ int main(int argc, char* argv[]) {
 			}
 			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
 
-			//update the sprite velocity
+			/*------------update the sprite velocity------------*/
+
+			//Cohesion algorithm
+			int x_centre = 0;
+			int y_centre = 0;
+			for (int j = 0; j < BOIDS_COUNT; j++) {
+				if (j != i) {
+					x_centre = x_centre + flock[j].x_pos;
+					y_centre = y_centre + flock[j].y_pos;
+				}
+			}
+			x_centre = x_centre / (BOIDS_COUNT-1);
+			y_centre = y_centre / (BOIDS_COUNT-1); //Average baryocenter
+			if (DEBUG) { printf("flock-centre found..."); } //Debug line
+			int centripetal_v = 10;
+			if (x_centre > flock[i].x_pos) { flock[i].x_vel = flock[i].x_vel + centripetal_v; }
+			else{ flock[i].x_vel = flock[i].x_vel - centripetal_v; }
+			if (y_centre > flock[i].y_pos) { flock[i].y_vel = flock[i].y_vel + centripetal_v; }
+			else { flock[i].y_vel = flock[i].y_vel - centripetal_v; }
+			
+
+
+			//Seperation Algorithm
+			float distance_x, distance_y, distance, force_x, force_y;
+			for (int j = 0; j < BOIDS_COUNT; j++) {
+				if (j != i) {
+					// Distance = other_boid - this_boid
+					distance_x = flock[j].x_pos - flock[i].x_pos;
+					distance_y = flock[j].y_pos - flock[i].y_pos;
+					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
+					
+					// Force = K*1/Distance
+					force_x = -FORCE_CONSTANT * (distance_x/distance) * 1 / distance;  // Dx/D=(0->1) range
+					force_y = -FORCE_CONSTANT *(distance_y/distance)* 1 / distance;
+				}
+			}
+			if (DEBUG) { printf("flock-forces applied ..."); }//Debug line
+
+			flock[i].y_vel = flock[i].y_vel + force_y;
+			flock[i].x_vel = flock[i].x_vel + force_x;
+
+			int v_cohesion;
 			int v_seperation;
 			int v_alignment;
-			int cohesion;
 
 			//Update the sprite position
 			flock[i].y_pos += flock[i].y_vel / 60; //Speed-per-second, divided by frame-time
