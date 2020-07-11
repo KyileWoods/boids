@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
 	int boids_count = 15 ;
 	//Create an array of textures representing each boid
 	SDL_Rect* pdest = (SDL_Rect*)malloc(boids_count * sizeof(SDL_Rect));
-	//struct Boid* flock = (struct Boid*)malloc(boids_count * sizeof(struct Boid)); //Creating space for a flock of boids
+	struct Boid* flock = (struct Boid*)malloc(boids_count * sizeof(struct Boid)); //Creating space for a flock of boids
 	//ptr = (int*)malloc(100 * sizeof(int)); //Prototype of the malloc function
 	float* x_pos = (float*)malloc(boids_count * sizeof(float));
 	float* y_pos = (float*)malloc(boids_count * sizeof(float));
@@ -131,13 +131,13 @@ int main(int argc, char* argv[]) {
 		dest2.h = 5; //Absolute scale, in pixels
 	*/
 		//Sprite position on the screen
-		x_pos[i] = (WINDOW_WIDTH - pdest[i].w) / (rand() % 10);
-		y_pos[i] = (WINDOW_HEIGHT - pdest[i].h) / (rand() % 10); //(rand()%10)
+		flock[i].x_pos = (WINDOW_WIDTH - pdest[i].w) / (rand() % 10);
+		flock[i].y_pos = (WINDOW_HEIGHT - pdest[i].h) / (rand() % 10); //(rand()%10)
 		//Give sprite some initial velocity
-		x_vel[i] = 0.1*SPEED*(rand() % 10);
-		y_vel[i] = 0.1*SPEED*(rand() % 10);
+		flock[i].x_vel = 0.1*SPEED*(rand() % 10);
+		flock[i].y_vel = 0.1*SPEED*(rand() % 10);
 		if (DEBUG) { printf("Position and velocity: "); }// Debug line
-		if (DEBUG) { printf("%f %f\n", x_pos[i], x_vel[i]); }// Debug line
+		if (DEBUG) { printf("%f %f\n", flock[i].x_pos, flock[i].x_vel); }// Debug line
 	}
 	if (DEBUG) { printf("Boids created successfully!"); }// Debug line
 	//Keep track of the inputs that are given
@@ -238,21 +238,21 @@ int main(int argc, char* argv[]) {
 			if(DEBUG){printf("\nBoid #%d ", i); }
 
 			//Bounds-collision detection and reflection
-			if (x_pos[i] <= 0) {
-				x_pos[i] = 0;
-				x_vel[i] = -x_vel[i];
+			if (flock[i].x_pos <= 0) {
+				flock[i].x_pos = 0;
+				flock[i].x_vel = -flock[i].x_vel;
 			}
-			if (y_pos[i] <= 0) {
-				y_pos[i] = 0;
-				y_vel[i] = -y_vel[i];
+			if (flock[i].y_pos <= 0) {
+				flock[i].y_pos = 0;
+				flock[i].y_vel = -flock[i].y_vel;
 			}
-			if (x_pos[i] >= WINDOW_WIDTH - pdest[i].w) {
-				x_pos[i] = WINDOW_WIDTH - pdest[i].w;
-				x_vel[i] = -x_vel[i];
+			if (flock[i].x_pos >= WINDOW_WIDTH - pdest[i].w) {
+				flock[i].x_pos = WINDOW_WIDTH - pdest[i].w;
+				flock[i].x_vel = -flock[i].x_vel;
 			}
-			if (y_pos[i] >= WINDOW_HEIGHT - pdest[i].h) {
-				y_pos[i] = WINDOW_HEIGHT - pdest[i].h;
-				y_vel[i] = -y_vel[i];
+			if (flock[i].y_pos >= WINDOW_HEIGHT - pdest[i].h) {
+				flock[i].y_pos = WINDOW_HEIGHT - pdest[i].h;
+				flock[i].y_vel = -flock[i].y_vel;
 			}
 			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
 
@@ -262,11 +262,11 @@ int main(int argc, char* argv[]) {
 			int cohesion;
 
 			//Update the sprite position
-			y_pos[i] += y_vel[i] / 60; //Speed-per-second, divided by frame-time
-			x_pos[i] += x_vel[i] / 60;
+			flock[i].y_pos += flock[i].y_vel / 60; //Speed-per-second, divided by frame-time
+			flock[i].x_pos += flock[i].x_vel / 60;
 			//set the positions in the struct
-			pdest[i].y = (int)y_pos[i]; //Take note this is cast from float to int
-			pdest[i].x = (int)x_pos[i];
+			pdest[i].y = (int)flock[i].y_pos; //Take note this is cast from float to int
+			pdest[i].x = (int)flock[i].x_pos;
 			if (DEBUG) { printf("Sprite positions updated ..."); } //Debug line
 
 			//draw the image to the window
