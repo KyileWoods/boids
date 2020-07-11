@@ -13,7 +13,7 @@
 #define SCROLL_SPEED (300)
 #define DEBUG (0)
 #define FORCE_CONSTANT (300)
-#define BOIDS_COUNT (15)
+#define BOIDS_COUNT (60)
 
 int initialise() {
 	printf("INITIALIZATION ENTERED\n");
@@ -119,8 +119,8 @@ int main(int argc, char* argv[]) {
 		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
 					 printf("at %d |", pdest[i].w); } // Debug line
 		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
-		pdest[i].w = 5;
-		pdest[i].h = 5; //Absolute scale, in pixels
+		pdest[i].w = 2;
+		pdest[i].h = 2; //Absolute scale, in pixels
 		if (DEBUG) { printf("texture..."); } // Debug line
 
 
@@ -132,8 +132,8 @@ int main(int argc, char* argv[]) {
 		dest2.h = 5; //Absolute scale, in pixels
 	*/
 		//Sprite position on the screen
-		flock[i].x_pos = (WINDOW_WIDTH - pdest[i].w) / (rand() % 10);
-		flock[i].y_pos = (WINDOW_HEIGHT - pdest[i].h) / (rand() % 10); //(rand()%10)
+		flock[i].x_pos = (WINDOW_WIDTH - pdest[i].w) / ((rand() % 10)+1);
+		flock[i].y_pos = (WINDOW_HEIGHT - pdest[i].h) / ((rand() % 10)+1); //(rand()%10)
 		//Give sprite some initial velocity
 		flock[i].x_vel = 0.1*SPEED*(rand() % 10);
 		flock[i].y_vel = 0.1*SPEED*(rand() % 10);
@@ -301,6 +301,10 @@ int main(int argc, char* argv[]) {
 			int v_cohesion;
 			int v_seperation;
 			int v_alignment;
+
+			// Normalize the velocity,
+			float veloc = sqrt((flock[i].y_vel*flock[i].y_vel) + (flock[i].x_vel*flock[i].x_vel));
+			if(veloc > SPEED){}
 
 			//Update the sprite position
 			flock[i].y_pos += flock[i].y_vel / 60; //Speed-per-second, divided by frame-time
