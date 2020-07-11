@@ -64,6 +64,8 @@ int InitialiseRenderer(SDL_Renderer** WhereRend, SDL_Window* win) { // Initiates
 	return 0;
 }
 
+struct Boid { int ID; float x_pos; float y_pos; float x_vel; float y_vel; };
+
 int main(int argc, char* argv[]) {
 
 	if (initialise() == 1) { return 1; }
@@ -99,9 +101,12 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	int boids_count = 5 ;
+	
+
+	int boids_count = 15 ;
 	//Create an array of textures representing each boid
 	SDL_Rect* pdest = (SDL_Rect*)malloc(boids_count * sizeof(SDL_Rect));
+	//struct Boid* flock = (struct Boid*)malloc(boids_count * sizeof(struct Boid)); //Creating space for a flock of boids
 	//ptr = (int*)malloc(100 * sizeof(int)); //Prototype of the malloc function
 	float* x_pos = (float*)malloc(boids_count * sizeof(float));
 	float* y_pos = (float*)malloc(boids_count * sizeof(float));
@@ -113,8 +118,8 @@ int main(int argc, char* argv[]) {
 		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
 					 printf("at %d |", pdest[i].w); } // Debug line
 		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
-		pdest[i].w = 10;
-		pdest[i].h = 10; //Absolute scale, in pixels
+		pdest[i].w = 5;
+		pdest[i].h = 5; //Absolute scale, in pixels
 		if (DEBUG) { printf("texture..."); } // Debug line
 
 
@@ -231,30 +236,36 @@ int main(int argc, char* argv[]) {
 		if (!left && right) { x_vel = SPEED; }*/
 		for (int i = 0; i < boids_count; i++) {
 			if(DEBUG){printf("\nBoid #%d ", i); }
+
 			//Bounds-collision detection and reflection
 			if (x_pos[i] <= 0) {
 				x_pos[i] = 0;
-				x_vel[i] = SPEED;
+				x_vel[i] = -x_vel[i];
 			}
 			if (y_pos[i] <= 0) {
 				y_pos[i] = 0;
-				y_vel[i] = SPEED;
+				y_vel[i] = -y_vel[i];
 			}
 			if (x_pos[i] >= WINDOW_WIDTH - pdest[i].w) {
 				x_pos[i] = WINDOW_WIDTH - pdest[i].w;
-				x_vel[i] = -SPEED;
+				x_vel[i] = -x_vel[i];
 			}
 			if (y_pos[i] >= WINDOW_HEIGHT - pdest[i].h) {
 				y_pos[i] = WINDOW_HEIGHT - pdest[i].h;
-				y_vel[i] = -SPEED;
+				y_vel[i] = -y_vel[i];
 			}
 			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
+
+			//update the sprite velocity
+			int v_seperation;
+			int v_alignment;
+			int cohesion;
 
 			//Update the sprite position
 			y_pos[i] += y_vel[i] / 60; //Speed-per-second, divided by frame-time
 			x_pos[i] += x_vel[i] / 60;
 			//set the positions in the struct
-			pdest[i].y = (int)y_pos[i]; //Take note of the cast from float to int, here
+			pdest[i].y = (int)y_pos[i]; //Take note this is cast from float to int
 			pdest[i].x = (int)x_pos[i];
 			if (DEBUG) { printf("Sprite positions updated ..."); } //Debug line
 
@@ -268,7 +279,7 @@ int main(int argc, char* argv[]) {
 		if (DEBUG) { printf("\n-----------------RenderPresent succeeded------------------------"); } //Debug line
 		
 		//Delay the renderer. This does not take into account the time through the animation loop.
-		SDL_Delay(100/60);
+		SDL_Delay(100/60); //TODO make this framerate consistent, despite loop-cmputation time.
 	}
 
 
