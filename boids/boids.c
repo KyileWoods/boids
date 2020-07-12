@@ -265,27 +265,30 @@ int main(int argc, char* argv[]) {
 
 			/*------------update the sprite velocity------------*/
 
-			//****Cohesion algorithm (Not yet implemented)
-			int x_centre = 0;
-			int y_centre = 0;
+			/***PROTOTYPE distance weighted cohesion algorithm ****/
+			float distance_x, distance_y, distance; float x_centre = 0; float y_centre = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
 				if (j != i) {
-					x_centre = x_centre + flock[j].x_pos;
-					y_centre = y_centre + flock[j].y_pos;
+					// Distance = other_boid - this_boid
+					distance_x = flock[j].x_pos - flock[i].x_pos;
+					distance_y = flock[j].y_pos - flock[i].y_pos;
+					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
+					x_centre += (1 / pow(2, (distance / 50)))*flock[j].x_pos;
+					y_centre += (1 / pow(2, (distance / 50)))*flock[j].y_pos;
+					// Force = K*1/Distance
+					// (1 / pow(2, (distance / 50)))
 				}
 			}
-			x_centre = x_centre / (BOIDS_COUNT-1);
-			y_centre = y_centre / (BOIDS_COUNT-1); //Average baryocenter
-			if (DEBUG) { printf("flock-centre found..."); } //Debug line
-			int centripetal_force = 10; //TODO this should be made into a global variable (OR boid attribute), probably.
-
+			x_centre = x_centre / (BOIDS_COUNT - 1);
+			y_centre = y_centre / (BOIDS_COUNT - 1); //DISTANCE-WEIGHTED mean baryocenter
+			
 			int centripetal_rot_direction = 1;
 			if (tan(flock[i].angle) >= y_centre / x_centre) { centripetal_rot_direction = -1; }
+			flock[i].angle += centripetal_rot_direction;
 
-			// TODO Centripetal force is not applied yet.
 
 			//****Seperation Algorithm
-			float distance_x, distance_y, distance;
+			//float distance_x, distance_y, distance;
 			float  seperation_rotation = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
 				if (j != i) {
