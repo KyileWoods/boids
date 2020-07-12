@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
 	//A single image/surface is loaded into memory, and then applied to N-many textures/boids
 	//Load the image into memory
-	SDL_Surface* surface = IMG_Load("Resources/redcircle.png");
+	SDL_Surface* surface = IMG_Load("Resources/redboid.png");
 	if (!surface) {
 		printf("Error creating the surface: %s\n", SDL_GetError());
 		IMG_Quit();
@@ -119,8 +119,8 @@ int main(int argc, char* argv[]) {
 		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
 					 printf("at %d |", pdest[i].w); } // Debug line
 		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
-		pdest[i].w = 2;
-		pdest[i].h = 2; //Absolute scale, in pixels
+		pdest[i].w = 15;
+		pdest[i].h = 15; //Absolute scale, in pixels
 		if (DEBUG) { printf("texture..."); } // Debug line
 
 
@@ -320,7 +320,8 @@ int main(int argc, char* argv[]) {
 			if (DEBUG) { printf("Sprite positions updated ..."); } //Debug line
 
 			//draw the image to the window
-			SDL_RenderCopy(rend, tex, NULL, &pdest[i]);
+			int rotation = 360 / (i+1);
+			SDL_RenderCopyEx(rend, tex, NULL, &pdest[i], rotation, NULL, SDL_FLIP_NONE);
 			if (DEBUG) { printf("RenderCopy succeeded"); } //Debug line
 		}
 
