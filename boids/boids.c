@@ -12,8 +12,8 @@
 #define SPEED (100)
 #define SCROLL_SPEED (300)
 #define DEBUG (0)
-#define FORCE_CONSTANT (300)
-#define BOIDS_COUNT (60)
+#define FORCE_CONSTANT (10)
+#define BOIDS_COUNT (6)
 
 int initialise() {
 	printf("INITIALIZATION ENTERED\n");
@@ -298,9 +298,10 @@ int main(int argc, char* argv[]) {
 					if (tan(flock[i].angle) >= distance_y / distance_x) { seperation_rot_direction = -1; }
 					
 					// Force = K*1/Distance
-					seperation_rotation = (FORCE_CONSTANT * 1 / distance)*seperation_rot_direction;
+					seperation_rotation += FORCE_CONSTANT*(1/pow(2,(distance/50)))*seperation_rot_direction;
 				}
 			}
+			
 			if (DEBUG) { printf("flock-forces applied ..."); }//Debug line
 
 			flock[i].angle += seperation_rotation;
