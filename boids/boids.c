@@ -9,7 +9,7 @@
 #define WINDOW_WIDTH (1200)
 #define WINDOW_HEIGHT (600)
 //pixels per second:
-#define SPEED (300)
+#define SPEED (100)
 #define SCROLL_SPEED (300)
 #define DEBUG (0)
 #define FORCE_CONSTANT (300)
@@ -66,7 +66,7 @@ int InitialiseRenderer(SDL_Renderer** WhereRend, SDL_Window* win) { // Initiates
 	return 0;
 }
 
-struct Boid { int ID; float x_pos; float y_pos; float x_vel; float y_vel; };
+struct Boid { int ID; float x_pos; float y_pos; double angle; };
 
 int main(int argc, char* argv[]) {
 
@@ -102,25 +102,20 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	
-
-	
 	//Create an array of textures representing each boid
 	SDL_Rect* pdest = (SDL_Rect*)malloc(BOIDS_COUNT * sizeof(SDL_Rect));
 	struct Boid* flock = (struct Boid*)malloc(BOIDS_COUNT * sizeof(struct Boid)); //Creating space for a flock of boids
 	//ptr = (int*)malloc(100 * sizeof(int)); //Prototype of the malloc function
-	float* x_pos = (float*)malloc(BOIDS_COUNT * sizeof(float));
-	float* y_pos = (float*)malloc(BOIDS_COUNT * sizeof(float));
-	float* x_vel = (float*)malloc(BOIDS_COUNT * sizeof(float));
-	float* y_vel = (float*)malloc(BOIDS_COUNT * sizeof(float));
 	printf("position and velocity structs established!\n");
 
-	for (int i = 0; i < BOIDS_COUNT; i++) {
+	/**** BOIDS CREATION ITERATION ****/
+	for (int i = 0; i < BOIDS_COUNT; i++) { 
+
 		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
 					 printf("at %d |", pdest[i].w); } // Debug line
 		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
-		pdest[i].w = 15;
-		pdest[i].h = 15; //Absolute scale, in pixels
+		pdest[i].w = 12;
+		pdest[i].h = 12; //Absolute scale, in pixels
 		if (DEBUG) { printf("texture..."); } // Debug line
 
 
@@ -132,15 +127,14 @@ int main(int argc, char* argv[]) {
 		dest2.h = 5; //Absolute scale, in pixels
 	*/
 		//Sprite position on the screen
-		flock[i].x_pos = (WINDOW_WIDTH - pdest[i].w) / ((rand() % 10)+1);
+		flock[i].x_pos = (WINDOW_WIDTH - pdest[i].w) / ((rand() % 10)+1); //TODO make this able to select any pixel on screen
 		flock[i].y_pos = (WINDOW_HEIGHT - pdest[i].h) / ((rand() % 10)+1); //(rand()%10)
-		//Give sprite some initial velocity
-		flock[i].x_vel = 0.1*SPEED*(rand() % 10);
-		flock[i].y_vel = 0.1*SPEED*(rand() % 10);
-		if (DEBUG) { printf("Position and velocity: "); }// Debug line
-		if (DEBUG) { printf("%f %f\n", flock[i].x_pos, flock[i].x_vel); }// Debug line
+		if (DEBUG) { printf("X&Y done, angle: "); }// Debug line
+		//Give sprite some initial angle
+		flock[i].angle = (rand() % 3600)/10;   //Degrees
+		if (DEBUG) { printf("%f\n", flock[i].angle); }// Debug line
 	}
-	if (DEBUG) { printf("Boids created successfully!"); }// Debug line
+	if (DEBUG) { printf("All Boids created successfully!"); }// Debug line
 	//Keep track of the inputs that are given
 	int up = 0;
 	int down = 0;
@@ -148,9 +142,6 @@ int main(int argc, char* argv[]) {
 	int right = 0;
 
 	int close_requested = 0;
-	
-
-
 	//animation loop
 	while (!close_requested) {
 		if (DEBUG) { printf("\nMain loop:   "); }
@@ -238,28 +229,43 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < BOIDS_COUNT; i++) {
 			if(DEBUG){printf("\nBoid #%d ", i); }
 
+			flock[i].angle = fmod(flock[i].angle, 360); //This fmod reassignment is used to stop angles winding up arbitrarily large
 			//Bounds-collision detection and reflection
 			if (flock[i].x_pos <= 0) {
-				flock[i].x_pos = 0;
-				flock[i].x_vel = -flock[i].x_vel;
+				flock[i].x_pos = 1;
+				if (flock[i].angle >= 180) {
+					flock[i].angle = flock[i].angle + 90;
+				}
+				else { flock[i].angle = 180 - flock[i].angle; }
 			}
-			if (flock[i].y_pos <= 0) {
-				flock[i].y_pos = 0;
-				flock[i].y_vel = -flock[i].y_vel;
+			if (flock[i].x_pos >= WINDOW_WIDTH) {
+				flock[i].x_pos = WINDOW_WIDTH-1;
+				if (flock[i].angle <= 180) { //Assuming  180<theta<360 or 0<theta<180
+					flock[i].angle = 180 - flock[i].angle;
+				}
+				else { flock[i].angle = 270 - flock[i].angle; }
 			}
-			if (flock[i].x_pos >= WINDOW_WIDTH - pdest[i].w) {
-				flock[i].x_pos = WINDOW_WIDTH - pdest[i].w;
-				flock[i].x_vel = -flock[i].x_vel;
+				
+			if (flock[i].y_pos <= 0){
+				flock[i].y_pos = 1;
+				if (flock[i].angle <= 270) {
+					flock[i].angle = flock[i].angle - 90;
+				}
+				else{flock[i].angle = 360 - flock[i].angle;}
 			}
-			if (flock[i].y_pos >= WINDOW_HEIGHT - pdest[i].h) {
-				flock[i].y_pos = WINDOW_HEIGHT - pdest[i].h;
-				flock[i].y_vel = -flock[i].y_vel;
+			if (flock[i].y_pos >= WINDOW_HEIGHT) {
+				flock[i].y_pos = WINDOW_HEIGHT-1;
+				if (flock[i].angle <= 90) {
+					flock[i].angle = 360 - flock[i].angle;
+				}
+				else { flock[i].angle = 360 - flock[i].angle; }
+				//270-(90-theta)
 			}
 			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
 
 			/*------------update the sprite velocity------------*/
 
-			//Cohesion algorithm
+			//****Cohesion algorithm (Not yet implemented)
 			int x_centre = 0;
 			int y_centre = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
@@ -271,16 +277,16 @@ int main(int argc, char* argv[]) {
 			x_centre = x_centre / (BOIDS_COUNT-1);
 			y_centre = y_centre / (BOIDS_COUNT-1); //Average baryocenter
 			if (DEBUG) { printf("flock-centre found..."); } //Debug line
-			int centripetal_v = 10;
-			if (x_centre > flock[i].x_pos) { flock[i].x_vel = flock[i].x_vel + centripetal_v; }
-			else{ flock[i].x_vel = flock[i].x_vel - centripetal_v; }
-			if (y_centre > flock[i].y_pos) { flock[i].y_vel = flock[i].y_vel + centripetal_v; }
-			else { flock[i].y_vel = flock[i].y_vel - centripetal_v; }
-			
+			int centripetal_force = 10; //TODO this should be made into a global variable (OR boid attribute), probably.
 
+			int centripetal_rot_direction = 1;
+			if (tan(flock[i].angle) >= y_centre / x_centre) { centripetal_rot_direction = -1; }
 
-			//Seperation Algorithm
-			float distance_x, distance_y, distance, force_x, force_y;
+			// TODO Centripetal force is not applied yet.
+
+			//****Seperation Algorithm
+			float distance_x, distance_y, distance;
+			float  seperation_rotation = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
 				if (j != i) {
 					// Distance = other_boid - this_boid
@@ -288,40 +294,32 @@ int main(int argc, char* argv[]) {
 					distance_y = flock[j].y_pos - flock[i].y_pos;
 					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
 					
+					int seperation_rot_direction = 1;
+					if (tan(flock[i].angle) >= distance_y / distance_x) { seperation_rot_direction = -1; }
+					
 					// Force = K*1/Distance
-					force_x = -FORCE_CONSTANT * (distance_x/distance) * 1 / distance;  // Dx/D=(0->1) range
-					force_y = -FORCE_CONSTANT *(distance_y/distance)* 1 / distance;
+					seperation_rotation = (FORCE_CONSTANT * 1 / distance)*seperation_rot_direction;
 				}
 			}
 			if (DEBUG) { printf("flock-forces applied ..."); }//Debug line
 
-			flock[i].y_vel = flock[i].y_vel + force_y;
-			flock[i].x_vel = flock[i].x_vel + force_x;
+			flock[i].angle += seperation_rotation;
 
 			int v_cohesion;
 			int v_seperation;
 			int v_alignment;
 
-			// Normalize the velocity,
-			float veloc = sqrt((flock[i].y_vel*flock[i].y_vel) + (flock[i].x_vel*flock[i].x_vel));
-			if(veloc > SPEED){
-				float rel_surplus = ((veloc - SPEED) / SPEED)-1;
-				flock[i].y_vel = (1 - rel_surplus)*flock[i].y_vel;
-				flock[i].x_vel = (1 - rel_surplus)*flock[i].x_vel;
-
-			}
-
 			//Update the sprite position
-			flock[i].y_pos += flock[i].y_vel / 60; //Speed-per-second, divided by frame-time
-			flock[i].x_pos += flock[i].x_vel / 60;
+			flock[i].y_pos += SPEED*(sin(M_PI*flock[i].angle/180)) / 60; //Speed-per-second, divided by frame-time
+			flock[i].x_pos += SPEED * (cos(M_PI*flock[i].angle/180)) / 60;
 			//set the positions in the struct
 			pdest[i].y = (int)flock[i].y_pos; //Take note this is cast from float to int
 			pdest[i].x = (int)flock[i].x_pos;
 			if (DEBUG) { printf("Sprite positions updated ..."); } //Debug line
 
 			//draw the image to the window
-			int rotation = 360 / (i+1);
-			SDL_RenderCopyEx(rend, tex, NULL, &pdest[i], rotation, NULL, SDL_FLIP_NONE);
+			//int facing_angle = 360 / (i+1);
+			SDL_RenderCopyEx(rend, tex, NULL, &pdest[i], flock[i].angle, NULL, SDL_FLIP_NONE);
 			if (DEBUG) { printf("RenderCopy succeeded"); } //Debug line
 		}
 
