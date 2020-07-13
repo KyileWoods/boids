@@ -12,8 +12,8 @@
 #define SPEED (100)
 #define SCROLL_SPEED (300)
 #define DEBUG (0)
-#define FORCE_CONSTANT (10)
-#define BOIDS_COUNT (6)
+#define SPEED_CONSTANT (0.8)
+#define BOIDS_COUNT (40)
 
 int initialise() {
 	printf("INITIALIZATION ENTERED\n");
@@ -69,6 +69,9 @@ int InitialiseRenderer(SDL_Renderer** WhereRend, SDL_Window* win) { // Initiates
 struct Boid { int ID; float x_pos; float y_pos; double angle; };
 
 int main(int argc, char* argv[]) {
+	float avoid_force = SPEED_CONSTANT;
+	float centripetal_force = SPEED_CONSTANT;
+
 
 	if (initialise() == 1) { return 1; }
 
@@ -218,14 +221,16 @@ int main(int argc, char* argv[]) {
 			x_vel = delta_x * SPEED / distance;
 			y_vel = delta_y * SPEED / distance;
 		}
-		
+		*/
 
-		//determine the new velocity.
+		// Keyboard Controls
 		//x_vel = y_vel = 0;
-		if (up && !down) { y_vel = -SPEED; }
-		if (!up && down) { y_vel = SPEED; }
-		if (left && !right) { x_vel = -SPEED; }
-		if (!left && right) { x_vel = SPEED; }*/
+		if (up && !down) { avoid_force += 0.1; printf("%f\n", avoid_force); }
+		if (!up && down) { avoid_force -= 0.1; printf("%f\n", centripetal_force); }
+		if (left && !right) { centripetal_force += 0.1; }
+		if (!left && right) { centripetal_force -= 0.1; printf("%f\n", centripetal_force); }
+		
+		
 		for (int i = 0; i < BOIDS_COUNT; i++) {
 			if(DEBUG){printf("\nBoid #%d ", i); }
 
@@ -238,8 +243,8 @@ int main(int argc, char* argv[]) {
 				}
 				else { flock[i].angle = 180 - flock[i].angle; }
 			}
-			if (flock[i].x_pos >= WINDOW_WIDTH) {
-				flock[i].x_pos = WINDOW_WIDTH-1;
+			if (flock[i].x_pos+pdest[i].w >= WINDOW_WIDTH) {
+				flock[i].x_pos = WINDOW_WIDTH-1-pdest[i].w;
 				if (flock[i].angle <= 180) { //Assuming  180<theta<360 or 0<theta<180
 					flock[i].angle = 180 - flock[i].angle;
 				}
@@ -253,8 +258,8 @@ int main(int argc, char* argv[]) {
 				}
 				else{flock[i].angle = 360 - flock[i].angle;}
 			}
-			if (flock[i].y_pos >= WINDOW_HEIGHT) {
-				flock[i].y_pos = WINDOW_HEIGHT-1;
+			if (flock[i].y_pos + pdest[i].h >= WINDOW_HEIGHT) {
+				flock[i].y_pos = WINDOW_HEIGHT-1-pdest[i].h;
 				if (flock[i].angle <= 90) {
 					flock[i].angle = 360 - flock[i].angle;
 				}
@@ -265,26 +270,30 @@ int main(int argc, char* argv[]) {
 
 			/*------------update the sprite velocity------------*/
 
-			/***PROTOTYPE distance weighted cohesion algorithm ****/
-			float distance_x, distance_y, distance; float x_centre = 0; float y_centre = 0;
+			/***distance weighted cohesion algorithm ****/
+			float distance_x, distance_y, distance, centripetal_rotation, baryocenter_weighted;  float x_centre = 0; float y_centre = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
 				if (j != i) {
 					// Distance = other_boid - this_boid
 					distance_x = flock[j].x_pos - flock[i].x_pos;
 					distance_y = flock[j].y_pos - flock[i].y_pos;
 					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
-					x_centre += (1 / pow(2, (distance / 50)))*flock[j].x_pos;
-					y_centre += (1 / pow(2, (distance / 50)))*flock[j].y_pos;
+					x_centre += flock[j].x_pos * (pow(0.7, pow((distance / 30), 1.3)));
+					y_centre += flock[j].y_pos * (pow(0.7, pow((distance / 30), 1.3)));
 					// Force = K*1/Distance
 					// (1 / pow(2, (distance / 50)))
 				}
 			}
 			x_centre = x_centre / (BOIDS_COUNT - 1);
 			y_centre = y_centre / (BOIDS_COUNT - 1); //DISTANCE-WEIGHTED mean baryocenter
+			baryocenter_weighted = sqrt((x_centre*x_centre) + (y_centre*y_centre));
 			
 			int centripetal_rot_direction = 1;
 			if (tan(flock[i].angle) >= y_centre / x_centre) { centripetal_rot_direction = -1; }
-			flock[i].angle += centripetal_rot_direction;
+
+			centripetal_rotation = centripetal_force * baryocenter_weighted;
+
+			//flock[i].angle += centripetal_rot_direction;
 
 
 			//****Seperation Algorithm
@@ -296,12 +305,18 @@ int main(int argc, char* argv[]) {
 					distance_x = flock[j].x_pos - flock[i].x_pos;
 					distance_y = flock[j].y_pos - flock[i].y_pos;
 					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
+
+					int seperation_rot_direction = -1; // Sep_rot is opposite centrip_rot defaults, (seeking V avoiding)
+					if (tan(flock[i].angle) >= distance_y / distance_x) { seperation_rot_direction = 1; }
+
+					//TODO: Insert a term to this equation which strengthens the steering response based on the viewing-angle to the other boid, so as to steer more strongly from boids which are directly)
+					seperation_rotation += avoid_force * (pow(0.5, pow((distance / 50), 10)) + (10 * pow(0.07, pow((distance / 50), 0.2))))*seperation_rot_direction;
+					/*
+					*/
+					/* The following equation will give a very strong response when in CLOSE proximity, as documented in "Design Explanation" Word document
+					(pow(0.5, pow((distance / 50), 10)) + (10 * pow(0.07, pow((distance / 50), 0.2))))
+				      */
 					
-					int seperation_rot_direction = 1;
-					if (tan(flock[i].angle) >= distance_y / distance_x) { seperation_rot_direction = -1; }
-					
-					// Force = K*1/Distance
-					seperation_rotation += FORCE_CONSTANT*(1/pow(2,(distance/50)))*seperation_rot_direction;
 				}
 			}
 			
