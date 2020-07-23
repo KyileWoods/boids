@@ -13,6 +13,7 @@
 #define SCROLL_SPEED (300)
 #define DEBUG (0)
 #define SPEED_CONSTANT (0.8)
+#define ALIGN_FORCE (5)
 #define BOIDS_COUNT (40)
 
 int initialise() {
@@ -269,9 +270,55 @@ int main(int argc, char* argv[]) {
 			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
 
 			/*------------update the sprite velocity------------*/
+			float distance_x, distance_y, distance;
 
-			/***distance weighted cohesion algorithm ****/
-			float distance_x, distance_y, distance, centripetal_rotation, baryocenter_weighted;  float x_centre = 0; float y_centre = 0;
+			/***Alignment algorithm ****/
+			float mean_theta_dev = 0;
+			for (int j = 0; j < BOIDS_COUNT; j++) {
+				mean_theta_dev = 0;
+				if (j != i) {
+					// Distance = other_boid - this_boid
+					distance_x = flock[j].x_pos - flock[i].x_pos;
+					distance_y = flock[j].y_pos - flock[i].y_pos;
+					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
+					mean_theta_dev += (fmod(flock[j].angle,360) - fmod(flock[i].angle,360))*(pow(0.7, pow((distance / 30), 1.3)));
+
+					// Force = K*1/Distance
+					// (1 / pow(2, (distance / 50)))
+				}
+			}
+			mean_theta_dev /= BOIDS_COUNT - 1;
+			
+			int align_rot_direction = 1;
+			if (flock[i].angle>=mean_theta_dev){ align_rot_direction = -1; }
+
+			float align_rotation = ALIGN_FORCE * align_rot_direction;
+
+			/***Simply centripetal algorithm ****/
+			float centripetal_rotation, baryocenter;  float x_mean = 0; float y_mean = 0;
+			distance = 0;
+			int boids_in_range = 0;
+			for (int j = 0; j < BOIDS_COUNT; j++) {
+				if (j != i) {
+					// Distance = other_boid - this_boid
+					distance_x = flock[j].x_pos;
+					distance_y = flock[j].y_pos;
+					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
+					if (distance < 200) { x_mean += distance_x; y_mean += distance_y; boids_in_range++;}
+				}
+			}
+			x_mean /= boids_in_range;
+			y_mean /= boids_in_range;
+			if (i == 0) { printf("%d\n", boids_in_range); }
+			int centripetal_rot_direction = 1;
+			if (distance == 0) { centripetal_rot_direction = 0; }
+			if ((atan(y_mean / x_mean)*180/M_PI)-flock[i].angle >= 180) { centripetal_rot_direction = -1; }
+
+			centripetal_rotation = centripetal_force * centripetal_rot_direction;
+
+
+			/*/***distance weighted centripetal algorithm ****
+			float centripetal_rotation, baryocenter_weighted;  float x_centre = 0; float y_centre = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
 				if (j != i) {
 					// Distance = other_boid - this_boid
@@ -292,9 +339,7 @@ int main(int argc, char* argv[]) {
 			if (tan(flock[i].angle) >= y_centre / x_centre) { centripetal_rot_direction = -1; }
 
 			centripetal_rotation = centripetal_force * baryocenter_weighted;
-
-			//flock[i].angle += centripetal_rot_direction;
-
+			*/
 
 			//****Seperation Algorithm
 			//float distance_x, distance_y, distance;
@@ -322,7 +367,9 @@ int main(int argc, char* argv[]) {
 			
 			if (DEBUG) { printf("flock-forces applied ..."); }//Debug line
 
-			flock[i].angle += seperation_rotation;
+			//flock[i].angle += seperation_rotation;
+			flock[i].angle += centripetal_rotation;
+			//flock[i].angle += align_rotation;
 
 			int v_cohesion;
 			int v_seperation;
