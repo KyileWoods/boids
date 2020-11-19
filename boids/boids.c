@@ -94,7 +94,6 @@ int main(int argc, char* argv[]) {
 	}
 
 
-
 	//Load the image data into the graphics hardware memory
 	SDL_Texture* tex = SDL_CreateTextureFromSurface(rend, surface);
 	SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
@@ -115,6 +114,7 @@ int main(int argc, char* argv[]) {
 	/**** BOIDS CREATION ITERATION ****/
 	for (int i = 0; i < BOIDS_COUNT; i++) { 
 
+		/*Create the boids*/
 		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
 					 printf("at %d |", pdest[i].w); } // Debug line
 		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
@@ -123,13 +123,6 @@ int main(int argc, char* argv[]) {
 		if (DEBUG) { printf("texture..."); } // Debug line
 
 
-
-	/*
-		SDL_Rect dest2; //Second dest, as a prototype for extending this to be multiple boids
-		SDL_QueryTexture(tex, NULL, NULL, &dest2.w, &dest2.h);
-		dest2.w = 5;
-		dest2.h = 5; //Absolute scale, in pixels
-	*/
 		//Sprite position on the screen
 		flock[i].x_pos = (WINDOW_WIDTH - pdest[i].w) / ((rand() % 10)+1); //TODO make this able to select any pixel on screen
 		flock[i].y_pos = (WINDOW_HEIGHT - pdest[i].h) / ((rand() % 10)+1); //(rand()%10)
@@ -235,42 +228,41 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < BOIDS_COUNT; i++) {
 			if(DEBUG){printf("\nBoid #%d ", i); }
 
-			flock[i].angle = fmod(flock[i].angle, 360); //This fmod reassignment is used to stop angles winding up arbitrarily large
+			flock[i].angle = abs(fmod(flock[i].angle, 2*M_PI)); //This fmod reassignment is used to stop angles winding up arbitrarily large
 			//Bounds-collision detection and reflection
 			if (flock[i].x_pos <= 0) {
 				flock[i].x_pos = 1;
-				if (flock[i].angle >= 180) {
-					flock[i].angle = flock[i].angle + 90;
+				if (flock[i].angle >= M_PI) {
+					flock[i].angle = flock[i].angle + (M_PI/2);
 				}
-				else { flock[i].angle = 180 - flock[i].angle; }
+				else { flock[i].angle = M_PI - flock[i].angle; }
 			}
 			if (flock[i].x_pos+pdest[i].w >= WINDOW_WIDTH) {
 				flock[i].x_pos = WINDOW_WIDTH-1-pdest[i].w;
-				if (flock[i].angle <= 180) { //Assuming  180<theta<360 or 0<theta<180
-					flock[i].angle = 180 - flock[i].angle;
+				if (flock[i].angle <= M_PI) { //Assuming  pi<theta<2*pi or 0<theta<pi
+					flock[i].angle = M_PI - flock[i].angle;
 				}
-				else { flock[i].angle = 270 - flock[i].angle; }
+				else { flock[i].angle = (3*M_PI/4) - flock[i].angle; }
 			}
 				
 			if (flock[i].y_pos <= 0){
 				flock[i].y_pos = 1;
-				if (flock[i].angle <= 270) {
-					flock[i].angle = flock[i].angle - 90;
+				if (flock[i].angle <= (3 * M_PI / 4)) {
+					flock[i].angle = flock[i].angle - (M_PI/2);
 				}
-				else{flock[i].angle = 360 - flock[i].angle;}
+				else{flock[i].angle = 2*M_PI - flock[i].angle;}
 			}
 			if (flock[i].y_pos + pdest[i].h >= WINDOW_HEIGHT) {
 				flock[i].y_pos = WINDOW_HEIGHT-1-pdest[i].h;
-				if (flock[i].angle <= 90) {
-					flock[i].angle = 360 - flock[i].angle;
+				if (flock[i].angle <= M_PI/2) {
+					flock[i].angle = (2*M_PI) - flock[i].angle;
 				}
-				else { flock[i].angle = 360 - flock[i].angle; }
-				//270-(90-theta)
+				else { flock[i].angle = (2 * M_PI) - flock[i].angle; }
 			}
 			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
 
 			/*------------update the sprite velocity------------*/
-			float distance_x, distance_y, distance;
+			float distance_x, distance_y, distance, phi;
 
 			/***Alignment algorithm ****/
 			float mean_theta_dev = 0;
@@ -295,7 +287,7 @@ int main(int argc, char* argv[]) {
 			float align_rotation = ALIGN_FORCE * align_rot_direction;
 
 			/***Simply centripetal algorithm ****/
-			float centripetal_rotation, baryocenter;  float x_mean = 0; float y_mean = 0;
+			float centripetal_rotation = 0; float x_mean = 0; float y_mean = 0;
 			distance = 0;
 			int boids_in_range = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
@@ -309,12 +301,13 @@ int main(int argc, char* argv[]) {
 			}
 			x_mean /= boids_in_range;
 			y_mean /= boids_in_range;
-			if (i == 0) { printf("%d\n", boids_in_range); }
+			if (i == 0 && DEBUG) { printf("%d Boids near the first Boid\n", boids_in_range); }
 			int centripetal_rot_direction = 1;
 			if (distance == 0) { centripetal_rot_direction = 0; }
-			if ((atan(y_mean / x_mean)*180/M_PI)-flock[i].angle >= 180) { centripetal_rot_direction = -1; }
+			if ((atan(y_mean / x_mean))-flock[i].angle >= 180) { centripetal_rot_direction = -1; }
 
-			centripetal_rotation = centripetal_force * centripetal_rot_direction;
+			phi = atan(y_mean / x_mean);
+			centripetal_rotation += cos(phi) / boids_in_range;
 
 
 			/*/***distance weighted centripetal algorithm ****
@@ -341,8 +334,7 @@ int main(int argc, char* argv[]) {
 			centripetal_rotation = centripetal_force * baryocenter_weighted;
 			*/
 
-			//****Seperation Algorithm
-			//float distance_x, distance_y, distance;
+			//****Seperation Algorithm*********//
 			float  seperation_rotation = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
 				if (j != i) {
@@ -350,12 +342,17 @@ int main(int argc, char* argv[]) {
 					distance_x = flock[j].x_pos - flock[i].x_pos;
 					distance_y = flock[j].y_pos - flock[i].y_pos;
 					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
+					phi = atan(distance_y / distance_x);
 
-					int seperation_rot_direction = -1; // Sep_rot is opposite centrip_rot defaults, (seeking V avoiding)
-					if (tan(flock[i].angle) >= distance_y / distance_x) { seperation_rot_direction = 1; }
+					seperation_rotation += cos(phi)/BOIDS_COUNT;
+					//seperation_rotation += cos(phi)*(pow(0.5, pow((distance / 50), 10)) + (20 * pow(0.07, pow((distance / 50), 0.2))));
+
+					int seperation_rot_direction = -1; // Sep_rot is opposite centrip_rot defaults, (seeking -V- avoiding)
+					if (flock[i].angle >= atan(distance_y / distance_x)) { seperation_rot_direction = 1; }
+					
 
 					//TODO: Insert a term to this equation which strengthens the steering response based on the viewing-angle to the other boid, so as to steer more strongly from boids which are directly)
-					seperation_rotation += avoid_force * (pow(0.5, pow((distance / 50), 10)) + (10 * pow(0.07, pow((distance / 50), 0.2))))*seperation_rot_direction;
+					//seperation_rotation += avoid_force * (pow(0.5, pow((distance / 50), 10)) + (10 * pow(0.07, pow((distance / 50), 0.2))))*seperation_rot_direction;
 					/*
 					*/
 					/* The following equation will give a very strong response when in CLOSE proximity, as documented in "Design Explanation" Word document
@@ -365,10 +362,12 @@ int main(int argc, char* argv[]) {
 				}
 			}
 			
-			if (DEBUG) { printf("flock-forces applied ..."); }//Debug line
 
+			//****Rotation calculations completed*****//
+			if (DEBUG) { printf("flock-forces applied ..."); }//Debug line
+			
 			//flock[i].angle += seperation_rotation;
-			flock[i].angle += centripetal_rotation;
+			//flock[i].angle += centripetal_rotation;
 			//flock[i].angle += align_rotation;
 
 			int v_cohesion;
@@ -376,17 +375,26 @@ int main(int argc, char* argv[]) {
 			int v_alignment;
 
 			//Update the sprite position
-			flock[i].y_pos += SPEED*(sin(M_PI*flock[i].angle/180)) / 60; //Speed-per-second, divided by frame-time
-			flock[i].x_pos += SPEED * (cos(M_PI*flock[i].angle/180)) / 60;
+			flock[i].y_pos += SPEED * (sin(flock[i].angle)) / 60; //Speed-per-second, divided by frame-time
+			flock[i].x_pos += SPEED * (cos(flock[i].angle)) / 60;
 			//set the positions in the struct
 			pdest[i].y = (int)flock[i].y_pos; //Take note this is cast from float to int
 			pdest[i].x = (int)flock[i].x_pos;
 			if (DEBUG) { printf("Sprite positions updated ..."); } //Debug line
 
+			if(isnan(flock[i].angle)){
+				1 + 1;
+			}
+
 			//draw the image to the window
 			//int facing_angle = 360 / (i+1);
-			SDL_RenderCopyEx(rend, tex, NULL, &pdest[i], flock[i].angle, NULL, SDL_FLIP_NONE);
-			if (DEBUG) { printf("RenderCopy succeeded"); } //Debug line
+			if (SDL_RenderCopyEx(rend, tex, NULL, &pdest[i], flock[i].angle * 180 / M_PI, NULL, SDL_FLIP_NONE)) {//Takes angle as degrees only
+				printf("RenderCopy FAILED FAILED FAILED");
+			}
+			else {
+				if (DEBUG) { printf("RenderCopy succeeded"); } //Debug line
+			}
+			
 		}
 
 		if (DEBUG) { ("Attempting RenderPresent..."); }
@@ -394,7 +402,7 @@ int main(int argc, char* argv[]) {
 		if (DEBUG) { printf("\n-----------------RenderPresent succeeded------------------------"); } //Debug line
 		
 		//Delay the renderer. This does not take into account the time through the animation loop.
-		SDL_Delay(100/60); //TODO make this framerate consistent, despite loop-cmputation time.
+		//SDL_Delay(100/60); //TODO make this framerate consistent, despite loop-computation time.
 	}
 
 
