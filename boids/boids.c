@@ -6,15 +6,16 @@
 #include<stdint.h>
 #include<math.h>
 
-#define WINDOW_WIDTH (1200)
-#define WINDOW_HEIGHT (600)
+#define WINDOW_WIDTH (900)
+#define WINDOW_HEIGHT (300)
 //pixels per second:
 #define SPEED (100)
 #define SCROLL_SPEED (300)
 #define DEBUG (0)
 #define SPEED_CONSTANT (0.8)
 #define ALIGN_FORCE (5)
-#define BOIDS_COUNT (40)
+#define BOIDS_COUNT (15)
+#define SHOWGREENDOT (1)
 
 int initialise() {
 	printf("INITIALIZATION ENTERED\n");
@@ -85,21 +86,54 @@ int main(int argc, char* argv[]) {
 
 	//A single image/surface is loaded into memory, and then applied to N-many textures/boids
 	//Load the image into memory
-	SDL_Surface* surface = IMG_Load("Resources/redboid.png");
-	if (!surface) {
-		printf("Error creating the surface: %s\n", SDL_GetError());
+	SDL_Surface* redsurface = IMG_Load("Resources/redboid.png");
+	if (!redsurface) {
+		printf("Error creating the red surface: %s\n", SDL_GetError());
+		IMG_Quit();
+		SDL_Quit();
+		return 1;
+	}
+	SDL_Surface* bluesurface = IMG_Load("Resources/blueboid.png");
+	if (!bluesurface) {
+		printf("Error creating the blue surface: %s\n", SDL_GetError());
+		IMG_Quit();
+		SDL_Quit();
+		return 1;
+	}
+	SDL_Surface* greensurface = IMG_Load("Resources/greenboid.png");
+	if (!bluesurface) {
+		printf("Error creating the green surface: %s\n", SDL_GetError());
 		IMG_Quit();
 		SDL_Quit();
 		return 1;
 	}
 
+	SDL_Rect greendot; //Creating a rect structure for the green dot
 
 	//Load the image data into the graphics hardware memory
-	SDL_Texture* tex = SDL_CreateTextureFromSurface(rend, surface);
-	SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
-	SDL_FreeSurface(surface);
-	if (!tex) {
-		printf("Error creating the surface: %s\n", SDL_GetError());
+	SDL_Texture* redtex = SDL_CreateTextureFromSurface(rend, redsurface);
+	SDL_SetTextureBlendMode(redtex, SDL_BLENDMODE_BLEND);
+	SDL_FreeSurface(redsurface);
+	if (!redtex) {
+		printf("Error creating the red texture: %s\n", SDL_GetError());
+		IMG_Quit();
+		SDL_Quit();
+		return 1;
+	}
+	SDL_Texture* bluetex = SDL_CreateTextureFromSurface(rend, bluesurface);
+	SDL_SetTextureBlendMode(bluetex, SDL_BLENDMODE_BLEND);
+	SDL_FreeSurface(bluesurface);
+	if (!bluetex) {
+		printf("Error creating the blue texture: %s\n", SDL_GetError());
+		IMG_Quit();
+		SDL_Quit();
+		return 1;
+	}
+	SDL_Texture* greentex = SDL_CreateTextureFromSurface(rend, greensurface);
+	SDL_SetTextureBlendMode(greentex, SDL_BLENDMODE_BLEND);
+	SDL_FreeSurface(greensurface);
+	if (!greentex) {
+		printf("Error creating the green texture: %s\n", SDL_GetError());
 		IMG_Quit();
 		SDL_Quit();
 		return 1;
@@ -117,7 +151,11 @@ int main(int argc, char* argv[]) {
 		/*Create the boids*/
 		if (DEBUG) { printf("boid #%d Established ... ", i);  // Debug line
 					 printf("at %d |", pdest[i].w); } // Debug line
-		SDL_QueryTexture(tex, NULL, NULL, &pdest[i].w, &pdest[i].h);
+		if(i==0){
+			SDL_QueryTexture(bluetex, NULL, NULL, &pdest[i].w, &pdest[i].h);}
+		else {
+			SDL_QueryTexture(redtex, NULL, NULL, &pdest[i].w, &pdest[i].h);
+		}
 		pdest[i].w = 12;
 		pdest[i].h = 12; //Absolute scale, in pixels
 		if (DEBUG) { printf("texture..."); } // Debug line
@@ -128,7 +166,7 @@ int main(int argc, char* argv[]) {
 		flock[i].y_pos = (WINDOW_HEIGHT - pdest[i].h) / ((rand() % 10)+1); //(rand()%10)
 		if (DEBUG) { printf("X&Y done, angle: "); }// Debug line
 		//Give sprite some initial angle
-		flock[i].angle = (rand() % 3600)/10;   //Degrees
+		flock[i].angle = 2*M_PI*sin(rand());   //radians //Not sure hwy this is not uniformly distributed
 		if (DEBUG) { printf("%f\n", flock[i].angle); }// Debug line
 	}
 	if (DEBUG) { printf("All Boids created successfully!"); }// Debug line
@@ -138,9 +176,10 @@ int main(int argc, char* argv[]) {
 	int left = 0;
 	int right = 0;
 
-	int close_requested = 0;
+	int close_requested = 0; int looper = 0;
 	//animation loop
 	while (!close_requested) {
+		looper += 1;
 		if (DEBUG) { printf("\nMain loop:   "); }
 
 		//Clear the window in the buffer
@@ -228,7 +267,7 @@ int main(int argc, char* argv[]) {
 		for (int i = 0; i < BOIDS_COUNT; i++) {
 			if(DEBUG){printf("\nBoid #%d ", i); }
 
-			flock[i].angle = abs(fmod(flock[i].angle, 2*M_PI)); //This fmod reassignment is used to stop angles winding up arbitrarily large
+			// TODO check that these transformations are not going to break out of [0, 2pi]
 			//Bounds-collision detection and reflection
 			if (flock[i].x_pos <= 0) {
 				flock[i].x_pos = 1;
@@ -262,7 +301,7 @@ int main(int argc, char* argv[]) {
 			if (DEBUG) { printf("Bounds-checking complete ..."); }//Debug line
 
 			/*------------update the sprite velocity------------*/
-			float distance_x, distance_y, distance, phi;
+			float distance_x = 0, distance_y = 0, distance = 0, phi=0;
 
 			/***Alignment algorithm ****/
 			float mean_theta_dev = 0;
@@ -287,27 +326,52 @@ int main(int argc, char* argv[]) {
 			float align_rotation = ALIGN_FORCE * align_rot_direction;
 
 			/***Simply centripetal algorithm ****/
-			float centripetal_rotation = 0; float x_mean = 0; float y_mean = 0;
+			int boids_in_range = 0; float centripetal_rotation = 0; float x_mean = 0; float y_mean = 0;
+			greendot.x = -50; greendot.y = -50; //make it invisible when not needed
 			distance = 0;
-			int boids_in_range = 0;
 			for (int j = 0; j < BOIDS_COUNT; j++) {
 				if (j != i) {
 					// Distance = other_boid - this_boid
-					distance_x = flock[j].x_pos;
-					distance_y = flock[j].y_pos;
+					distance_x = flock[j].x_pos - flock[i].x_pos;
+					distance_y = flock[j].y_pos - flock[i].y_pos;
 					distance = sqrt((distance_x*distance_x) + (distance_y*distance_y));
-					if (distance < 200) { x_mean += distance_x; y_mean += distance_y; boids_in_range++;}
+					if (distance < 200) { x_mean += flock[j].x_pos; y_mean += flock[j].y_pos; boids_in_range++;}
 				}
 			}
-			x_mean /= boids_in_range;
-			y_mean /= boids_in_range;
-			if (i == 0 && DEBUG) { printf("%d Boids near the first Boid\n", boids_in_range); }
-			int centripetal_rot_direction = 1;
-			if (distance == 0) { centripetal_rot_direction = 0; }
-			if ((atan(y_mean / x_mean))-flock[i].angle >= 180) { centripetal_rot_direction = -1; }
+			if (boids_in_range) {
+				x_mean /= boids_in_range;
+				y_mean /= boids_in_range;
+				if (x_mean - flock[i].x_pos) {
+					phi = atan((y_mean - flock[i].y_pos) / (x_mean - flock[i].x_pos)); // phi set: (-pi,pi)
+				}
+				if (phi > 0) {
+					phi = fmod(phi, 2 * M_PI);
+				}
+				else{
+					phi = 2 * M_PI - fmod(phi, 2 * M_PI);
+				}
+				if (flock[i].angle > 0) {
+					flock[i].angle = fmod(flock[i].angle, 2 * M_PI);
+				}
+				else {
+					flock[i].angle = 2 * M_PI - fmod(flock[i].angle, 2 * M_PI);
+				}
+				centripetal_rotation = sin(phi - flock[i].angle)/10;
+				
+				if (i == 0) { //Blue-boid informations
+					//float a = 0.2, t, x = 0, y = 0;
+					//t = x * cos(a) - y * sin(a);
+					//y = x * sin(a) + y * cos(a);
+					//x = t;
+					//y=x*sin(a)+y*cos(a)
+					greendot.x = x_mean;
+					greendot.y = y_mean;
+					greendot.w = pdest[0].w;
+					greendot.h = pdest[0].h;
+					printf("angle to green: %f*pi\n", phi/M_PI);
 
-			phi = atan(y_mean / x_mean);
-			centripetal_rotation += cos(phi) / boids_in_range;
+				}
+			}
 
 
 			/*/***distance weighted centripetal algorithm ****
@@ -367,7 +431,7 @@ int main(int argc, char* argv[]) {
 			if (DEBUG) { printf("flock-forces applied ..."); }//Debug line
 			
 			//flock[i].angle += seperation_rotation;
-			//flock[i].angle += centripetal_rotation;
+			flock[i].angle += centripetal_rotation;
 			//flock[i].angle += align_rotation;
 
 			int v_cohesion;
@@ -388,13 +452,30 @@ int main(int argc, char* argv[]) {
 
 			//draw the image to the window
 			//int facing_angle = 360 / (i+1);
-			if (SDL_RenderCopyEx(rend, tex, NULL, &pdest[i], flock[i].angle * 180 / M_PI, NULL, SDL_FLIP_NONE)) {//Takes angle as degrees only
-				printf("RenderCopy FAILED FAILED FAILED");
+			if(i!=0){
+				if (SDL_RenderCopyEx(rend, redtex, NULL, &pdest[i], flock[i].angle * 180 / M_PI, NULL, SDL_FLIP_NONE)) {//Takes angle as degrees only
+					printf("RenderCopy RED FAILED FAILED FAILED");
+				}
+				else {
+					if (DEBUG) { printf("RenderCopy RED succeeded"); } //Debug line
+				}
 			}
 			else {
-				if (DEBUG) { printf("RenderCopy succeeded"); } //Debug line
+				if (SDL_RenderCopyEx(rend, bluetex, NULL, &pdest[i], flock[i].angle * 180 / M_PI, NULL, SDL_FLIP_NONE)) {//Takes angle as degrees only
+					printf("RenderCopy BLUE FAILED FAILED FAILED");
+				}
+				else {
+					if (DEBUG) { printf("RenderCopy BLUE succeeded"); } //Debug line
+				}
 			}
-			
+			if (SHOWGREENDOT) {
+				if (SDL_RenderCopyEx(rend, greentex, NULL, &greendot, flock[0].angle * 180 / M_PI, NULL, SDL_FLIP_NONE)) {//Takes angle as degrees only
+					printf("RenderCopy BARYGREEN FAILED FAILED FAILED");
+				}
+				else {
+					if (DEBUG) { printf("RenderCopy BARYOGREEN succeeded"); } //Debug line
+				}
+			}
 		}
 
 		if (DEBUG) { ("Attempting RenderPresent..."); }
@@ -416,7 +497,8 @@ int main(int argc, char* argv[]) {
 //SDL_Delay(200); // window lasts 3 seconds
 
 //We are done with our resources, lets free them up.
-SDL_DestroyTexture(tex);
+SDL_DestroyTexture(redtex);
+SDL_DestroyTexture(bluetex);
 SDL_DestroyRenderer(rend);
 SDL_DestroyWindow(win);
 
